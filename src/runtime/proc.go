@@ -5011,12 +5011,40 @@ func malg(stacksize int32) *g {
 	return newg
 }
 
+//go:nosplit
+func GoID() uint64 {
+	return getg().goid
+}
+
+//go:nosplit
+func GoSpilt() {
+	getg().context = map[string]any{}
+}
+
+//go:nosplit
+func GoValue(key string) any {
+	if getg().context == nil {
+		return nil
+	}
+	return getg().context[key]
+}
+
+//go:nosplit
+func GoSetValue(key string, v any) {
+	if getg().context == nil {
+		getg().context = map[string]any{}
+	}
+	getg().context[key] = v
+	return
+}
+
 // Create a new g running fn.
 // Put it on the queue of g's waiting to run.
 // The compiler turns a go statement into a call to this.
 func newproc(fn *funcval) {
 	gp := getg()
 	pc := sys.GetCallerPC()
+
 	systemstack(func() {
 		newg := newproc1(fn, gp, pc, false, waitReasonZero)
 
@@ -5035,6 +5063,9 @@ func newproc(fn *funcval) {
 func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreason waitReason) *g {
 	if fn == nil {
 		fatal("go of nil func value")
+	}
+	if callergp.context == nil {
+		callergp.context = map[string]any{}
 	}
 
 	mp := acquirem() // disable preemption because we hold M and P in local vars.
@@ -5135,7 +5166,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 		}
 	}
 	releasem(mp)
-
+	newg.context = callergp.context
 	return newg
 }
 
