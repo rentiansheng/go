@@ -20,6 +20,7 @@ func TestSizeof(t *testing.T) {
 		_32bit uintptr // size on 32bit platforms
 		_64bit uintptr // size on 64bit platforms
 	}{
+		// 修改了g struct的定义，所以这里的测试用例也需要修改
 		{runtime.G{}, 280, 440},   // g, but exported for testing
 		{runtime.Sudog{}, 56, 88}, // sudog, but exported for testing
 	}

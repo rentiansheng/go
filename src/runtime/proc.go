@@ -3229,7 +3229,9 @@ func gcstopm() {
 //go:yeswritebarrierrec
 func execute(gp *g, inheritTime bool) {
 	mp := getg().m
-
+	if goIsDone(gp) {
+		throw("execute: goroutine is done")
+	}
 	if goroutineProfile.active {
 		// Make sure that gp has had its stack written out to the goroutine
 		// profile, exactly as it was when the goroutine profiler first stopped
@@ -5017,8 +5019,9 @@ func GoID() uint64 {
 }
 
 //go:nosplit
-func GoSpilt() {
+func GoSplit() {
 	getg().context = map[string]any{}
+	getg().done = nil
 }
 
 //go:nosplit
@@ -5036,6 +5039,30 @@ func GoSetValue(key string, v any) {
 	}
 	getg().context[key] = v
 	return
+}
+
+//go:nosplit
+func GoWithDone(fn goroutineDoneFn) {
+	getg().done = fn
+}
+
+//go:nosplit
+func GoIsDone() bool {
+	return goIsDone(getg())
+}
+
+//go:nosplit
+func goIsDone(gp *g) bool {
+	if gp.done == nil {
+		return false
+	}
+	select {
+	case <-gp.done():
+		return true
+	default:
+	}
+
+	return false
 }
 
 // Create a new g running fn.
@@ -5167,6 +5194,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 	}
 	releasem(mp)
 	newg.context = callergp.context
+	newg.done = callergp.done
 	return newg
 }
 

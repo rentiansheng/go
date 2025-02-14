@@ -508,7 +508,12 @@ type g struct {
 
 	// global context
 	context map[string]any
+
+	//  done chan
+	done goroutineDoneFn
 }
+
+type goroutineDoneFn func() <-chan struct{}
 
 // gTrackingPeriod is the number of transitions out of _Grunning between
 // latency tracking runs.
